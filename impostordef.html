@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Juego del Impostor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #1e1e1e;
+  color: white;
+  text-align: center;
+  margin: 0;
+  padding: 20px;
+}
+
+button {
+  font-size: 20px;
+  padding: 12px 25px;
+  margin: 10px;
+  cursor: pointer;
+}
+
+input {
+  font-size: 20px;
+  padding: 5px;
+  width: 90px;
+}
+
+#wordDisplay {
+  font-size: 36px;
+  color: yellow;
+  margin: 20px;
+}
+
+#cooldown {
+  font-size: 28px;
+  color: #ff5555;
+  margin-top: 15px;
+}
+</style>
+</head>
+<body>
+
+<div id="screen">
+  <h1>Juego del Impostor</h1>
+  <button id="startBtn">Toca para empezar</button>
+</div>
+
+<!-- 🔊 Sonidos -->
+<audio id="beep">
+  <source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg">
+</audio>
+
+<audio id="startSound">
+  <source src="https://actions.google.com/sounds/v1/cartoon/pop.ogg">
+</audio>
+
+<script>
+const screen = document.getElementById('screen');
+const beep = document.getElementById('beep');
+const startSound = document.getElementById('startSound');
+
+let players = 0;
+let impostors = 0;
+let category = '';
+let gameWords = [];
+let currentPlayer = 0;
+let canNext = false;
+
+const categories = {
+  futbolistas: ['Messi','Ronaldo','Mbappé','Neymar','Lewandowski','Modric','Kane','Mbemba','Hazard','De Bruyne'],
+  objetos: ['Lápiz','Mesa','Silla','Teléfono','Computadora','Zapato','Reloj','Libro','Llave','Gorra'],
+  cotidiano: ['Dormir','Comer','Correr','Estudiar','Bañarse','Cocinar','Leer','Escribir','Cantar','Bailar']
+};
+
+document.getElementById('startBtn').onclick = () => {
+  startSound.play();
+  askPlayers();
+};
+
+function setScreen(html) {
+  screen.innerHTML = html;
+}
+
+function askPlayers() {
+  setScreen(`
+    <h2>¿Cuántos jugadores? (3-20)</h2>
+    <input id="playersInput" type="number" min="3" max="20">
+    <br>
+    <button onclick="submitPlayers()">Aceptar</button>
+  `);
+}
+
+function submitPlayers() {
+  players = parseInt(document.getElementById('playersInput').value);
+  if (players >= 3 && players <= 20) askImpostors();
+  else alert('Número inválido');
+}
+
+function askImpostors() {
+  setScreen(`
+    <h2>¿Cuántos impostores?</h2>
+    <input id="impostorsInput" type="number" min="1" max="${players}">
+    <br>
+    <button onclick="submitImpostors()">Aceptar</button>
+  `);
+}
+
+function submitImpostors() {
+  impostors = parseInt(document.getElementById('impostorsInput').value);
+  if (impostors >= 1 && impostors <= players) askCategory();
+  else alert('Número inválido');
+}
+
+function askCategory() {
+  setScreen(`
+    <h2>Elige categoría</h2>
+    <button onclick="setCategory('futbolistas')">⚽ Futbol</button>
+    <button onclick="setCategory('objetos')">📦 Objetos</button>
+    <button onclick="setCategory('cotidiano')">🏠 Cotidiano</button>
+  `);
+}
+
+function setCategory(cat) {
+  category = cat;
+  prepareWords();
+  giveWord();
+}
+
+function prepareWords() {
+  const words = categories[category];
+  const secretWord = words[Math.floor(Math.random() * words.length)];
+
+  // Todos empiezan con la palabra normal
+  gameWords = Array(players).fill(secretWord);
+
+  // Elegir impostores únicos
+  let chosen = new Set();
+  while (chosen.size < impostors) {
+    chosen.add(Math.floor(Math.random() * players));
+  }
+
+  // A los impostores se les pone "IMPOSTOR"
+  chosen.forEach(i => {
+    gameWords[i] = 'IMPOSTOR';
+  });
+}
+
+function giveWord() {
+  if (currentPlayer >= players) {
+    showStarter();
+    return;
+  }
+
+  canNext = false;
+
+  setScreen(`
+    <h2>Jugador ${currentPlayer + 1}</h2>
+    <button id="showWord">Mantén presionado para ver tu palabra</button>
+    <div id="wordDisplay"></div>
+    <div id="cooldown">Espera...</div>
+    <button id="nextBtn" disabled>Siguiente jugador</button>
+  `);
+
+  const showBtn = document.getElementById('showWord');
+  const display = document.getElementById('wordDisplay');
+  const nextBtn = document.getElementById('nextBtn');
+  const cooldown = document.getElementById('cooldown');
+
+  showBtn.ontouchstart = showBtn.onmousedown = () => {
+    display.textContent = gameWords[currentPlayer];
+  };
+
+  showBtn.ontouchend = showBtn.onmouseup = showBtn.onmouseleave = () => {
+    display.textContent = '';
+  };
+
+  let count = 3;
+  cooldown.textContent = `Espera ${count}...`;
+
+  const timer = setInterval(() => {
+    count--;
+    if (count > 0) {
+      cooldown.textContent = `Espera ${count}...`;
+    } else {
+      clearInterval(timer);
+      cooldown.textContent = '¡Ya puedes continuar!';
+      canNext = true;
+      nextBtn.disabled = false;
+    }
+  }, 1000);
+
+  nextBtn.onclick = () => {
+    if (!canNext) return;
+    beep.play();
+    currentPlayer++;
+    giveWord();
+  };
+}
+
+function showStarter() {
+  const starter = Math.floor(Math.random() * players) + 1;
+  setScreen(`
+    <h2>Todos han visto su rol</h2>
+    <h1>Empieza el jugador ${starter}</h1>
+  `);
+}
+</script>
+
+</body>
+</html>
